@@ -20,6 +20,7 @@ public class DisconnectLogger extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(@NotNull ChannelHandlerContext ctx) throws Exception {
+        if (connection.getUsername() == null) return;
         String what = "Forwarder";
         if (flow == PacketFlow.SERVERBOUND) what = "Remote";
         Minecraft.unregisterConnection(connection);

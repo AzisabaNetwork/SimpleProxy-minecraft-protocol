@@ -28,7 +28,7 @@ public class MinecraftProtocolPlugin extends Plugin {
     public void onConnectionInit(ConnectionInitEvent e) {
         if (e.getListenerInfo().getProtocol() == Protocol.TCP && ("minecraft".equals(e.getListenerInfo().getType()) || "minecraft-full".equals(e.getListenerInfo().getType()))) {
             Mode mode = "minecraft-full".equals(e.getListenerInfo().getType()) ? Mode.FULL : Mode.NORMAL;
-            getLogger().info("Registering Minecraft packet handler for {} (Forwarder)", e.getChannel());
+            getLogger().debug("Registering Minecraft packet handler for {} (Forwarder)", e.getChannel());
             Connection connection = new Connection(mode, e.getChannel(), null);
             e.getChannel().pipeline()
                     .addLast("splitter", new Varint21FrameDecoder())
@@ -43,7 +43,7 @@ public class MinecraftProtocolPlugin extends Plugin {
     @EventHandler
     public void onRemoteConnectionInit(RemoteConnectionInitEvent e) {
         if (e.getListenerInfo().getProtocol() == Protocol.TCP && ("minecraft".equals(e.getListenerInfo().getType()) || "minecraft-full".equals(e.getListenerInfo().getType()))) {
-            getLogger().info("Registering Minecraft packet handler for {} (Remote)", e.getChannel());
+            getLogger().debug("Registering Minecraft packet handler for {} (Remote)", e.getChannel());
             Connection connection = e.getSourceChannel().pipeline().get(MinecraftPacketDecoder.class).getConnection();
             connection.setRemoteChannel(e.getChannel());
             e.getChannel().pipeline()
