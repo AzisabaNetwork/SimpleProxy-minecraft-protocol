@@ -22,7 +22,7 @@ dependencies {
     implementation("com.velocitypowered:velocity-native:3.1.0")
     compileOnly("net.azisaba.simpleProxy:api:0.0.3-SNAPSHOT")
     compileOnly("org.jetbrains:annotations:23.0.0")
-    compileOnly("it.unimi.dsi:fastutil:8.5.6")
+    compileOnly("it.unimi.dsi:fastutil:8.5.8")
 }
 
 configurations.all {
