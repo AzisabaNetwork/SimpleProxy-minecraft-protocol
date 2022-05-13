@@ -4,7 +4,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import net.azisaba.simpleProxy.minecraft.Minecraft;
 import net.azisaba.simpleProxy.minecraft.connection.Connection;
 import net.azisaba.simpleProxy.minecraft.packet.Packet;
 import org.apache.logging.log4j.LogManager;
@@ -33,7 +32,10 @@ public class MinecraftPacketDecoder extends ChannelDuplexHandler {
         if (/*flow == PacketFlow.SERVERBOUND && */msg instanceof ByteBuf) {
             try {
                 handle(readFlow, (ByteBuf) msg);
-            } catch (NullPointerException ignored) {}
+            } catch (NullPointerException ignored) {
+            } catch (Exception e) {
+                LOGGER.error("Error while handling packet", e);
+            }
         }
         super.channelRead(ctx, msg);
     }

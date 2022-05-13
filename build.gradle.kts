@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "net.azisaba.simpleProxy"
-version = "0.0.1"
+version = "0.1.0"
 
 java {
     toolchain {
@@ -15,14 +15,12 @@ java {
 repositories {
     mavenCentral()
     maven { url = uri("https://repo.acrylicstyle.xyz/repository/maven-public/") }
-    maven { url = uri("https://nexus.velocitypowered.com/repository/velocity-artifacts-release/") }
 }
 
 dependencies {
-    implementation("com.velocitypowered:velocity-native:3.1.0")
-    compileOnly("net.azisaba.simpleProxy:api:0.0.3-SNAPSHOT")
+    compileOnly("net.azisaba.simpleProxy:api:1.1.2")
     compileOnly("org.jetbrains:annotations:23.0.0")
-    compileOnly("it.unimi.dsi:fastutil:8.5.6")
+    compileOnly("it.unimi.dsi:fastutil:8.5.8")
 }
 
 configurations.all {
@@ -30,7 +28,7 @@ configurations.all {
 }
 
 tasks {
-    withType<ProcessResources> {
+    processResources {
         filteringCharset = "UTF-8"
         from(sourceSets.main.get().resources.srcDirs) {
             include("**")
@@ -48,7 +46,7 @@ tasks {
         from(projectDir) { include("LICENSE") }
     }
 
-    getByName<Test>("test") {
+    test {
         useJUnitPlatform()
     }
 }

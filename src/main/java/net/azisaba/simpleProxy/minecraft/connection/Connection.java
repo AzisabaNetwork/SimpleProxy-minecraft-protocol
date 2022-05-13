@@ -2,6 +2,10 @@ package net.azisaba.simpleProxy.minecraft.connection;
 
 import io.netty.channel.Channel;
 import net.azisaba.simpleProxy.api.ProxyServer;
+import net.azisaba.simpleProxy.api.config.ListenerInfo;
+import net.azisaba.simpleProxy.api.config.ServerInfo;
+import net.azisaba.simpleProxy.api.yaml.YamlArray;
+import net.azisaba.simpleProxy.api.yaml.YamlObject;
 import net.azisaba.simpleProxy.minecraft.packet.login.ClientboundEncryptionRequestPacket;
 import net.azisaba.simpleProxy.minecraft.protocol.MinecraftDecipher;
 import net.azisaba.simpleProxy.minecraft.protocol.MinecraftEncipher;
@@ -13,10 +17,16 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.crypto.Cipher;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 
 public class Connection {
     private static final Logger LOGGER = LogManager.getLogger();
+    private static final Random RANDOM = new Random();
+    private final ListenerInfo originalListenerInfo;
     private final Mode mode;
     private Channel playerChannel;
     private Channel remoteChannel;
@@ -25,9 +35,13 @@ public class Connection {
     private boolean encrypted = false;
     private ClientboundEncryptionRequestPacket encryptionRequestPacket;
     private String username;
+    public List<Object> packetsQueue = Collections.synchronizedList(new ArrayList<>());
 
-    public Connection(@NotNull Mode mode, @Nullable Channel playerChannel, @Nullable Channel remoteChannel) {
-        if (mode == Mode.FULL) throw new RuntimeException(mode + " mode not supported");
+    public Connection(@NotNull ListenerInfo listenerInfo, @NotNull Mode mode, @Nullable Channel playerChannel, @Nullable Channel remoteChannel) {
+        if (mode == Mode.FULL) {
+            throw new RuntimeException(mode + " mode not supported");
+        }
+        this.originalListenerInfo = listenerInfo;
         this.mode = mode;
         this.playerChannel = playerChannel;
         this.remoteChannel = remoteChannel;
@@ -112,6 +126,49 @@ public class Connection {
             playerChannel.writeAndFlush(packet);
         } else {
             remoteChannel.writeAndFlush(packet);
+        }
+    }
+
+    @NotNull
+    public ListenerInfo getOriginalListenerInfo() {
+        return originalListenerInfo;
+    }
+
+    @Nullable
+    public ServerInfo getTargetServerForVirtualHost(@NotNull String serverAddress) {
+        ListenerInfo info = getOriginalListenerInfo();
+        ServerInfo randomServerInfo;
+        if (info.getServers().isEmpty()) {
+            randomServerInfo = null;
+        } else {
+            randomServerInfo = info.getServers().get(RANDOM.nextInt(info.getServers().size()));
+        }
+        YamlObject virtualHosts = info.getConfig().getObject("virtual-hosts");
+        if (virtualHosts == null) {
+            return randomServerInfo;
+        }
+        YamlArray servers = virtualHosts.getArray(serverAddress);
+        if (servers == null || servers.isEmpty()) {
+            servers = virtualHosts.getArray("default");
+        }
+        if (servers == null || servers.isEmpty()) {
+            return randomServerInfo;
+        }
+        YamlObject server = servers.getObject(RANDOM.nextInt(servers.size()));
+        try {
+            return ProxyServer.getProxy().unsafe().createServerInfo(server);
+        } catch (RuntimeException e) {
+            LOGGER.error("Failed to parse virtual host for {}", serverAddress, e);
+            return randomServerInfo;
+        }
+    }
+
+    public void close() {
+        if (playerChannel != null) {
+            playerChannel.close();
+        }
+        if (remoteChannel != null) {
+            remoteChannel.close();
         }
     }
 }

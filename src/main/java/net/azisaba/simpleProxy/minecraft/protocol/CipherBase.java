@@ -1,6 +1,5 @@
 package net.azisaba.simpleProxy.minecraft.protocol;
 
-import com.velocitypowered.natives.util.Natives;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import org.jetbrains.annotations.NotNull;

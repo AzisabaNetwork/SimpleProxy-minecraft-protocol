@@ -29,4 +29,9 @@ public class DisconnectLogger extends ChannelInboundHandlerAdapter {
         }
         super.channelInactive(ctx);
     }
+
+    @NotNull
+    public Connection getConnection() {
+        return connection;
+    }
 }

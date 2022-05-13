@@ -1,6 +1,9 @@
 package net.azisaba.simpleProxy.minecraft.packet.handshaking;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import net.azisaba.simpleProxy.api.ProxyServer;
+import net.azisaba.simpleProxy.api.config.ServerInfo;
 import net.azisaba.simpleProxy.minecraft.connection.Connection;
 import net.azisaba.simpleProxy.minecraft.packet.BadPacketException;
 import net.azisaba.simpleProxy.minecraft.packet.Packet;
@@ -8,7 +11,7 @@ import net.azisaba.simpleProxy.minecraft.protocol.Protocol;
 import org.jetbrains.annotations.NotNull;
 
 public class ServerboundHandshakePacket extends Packet {
-    private static final BadPacketException INVALID_NEXT_STATE_EXCEPTION = new BadPacketException("Invalid Next State");
+    private static final BadPacketException INVALID_NEXT_STATE_EXCEPTION = new BadPacketException("Invalid Next State " + Packet.CACHED_EXCEPTION_SUFFIX);
     public int protocolVersion; // VarInt
     public String serverAddress; // String (255)
     public int port; // Unsigned Short
@@ -38,6 +41,23 @@ public class ServerboundHandshakePacket extends Packet {
 
     @Override
     public void handle(@NotNull Connection connection) {
+        ServerInfo serverInfo = connection.getTargetServerForVirtualHost(serverAddress);
+        if (serverInfo == null) {
+            // no server to connect, disconnect the client.
+            connection.close();
+            return;
+        }
+        if (!connection.getPlayerChannel().pipeline().names().contains("message_forwarder")) {
+            // this means the user cannot have servers and virtual-hosts at same time
+
+            ChannelInboundHandlerAdapter messageForwarder =
+                    ProxyServer.getProxy()
+                            .unsafe()
+                            .createMessageForwarder(connection.getPlayerChannel(), connection.getOriginalListenerInfo(), serverInfo);
+            //Util.getQueue(messageForwarder).addAll(connection.packetsQueue);
+            //connection.packetsQueue = null;
+            connection.getPlayerChannel().pipeline().addBefore("splitter", "message_forwarder", messageForwarder);
+        }
         connection.setProtocolVersion(protocolVersion);
         if (nextState != 1 && nextState != 2) {
             if (DEBUG) {
