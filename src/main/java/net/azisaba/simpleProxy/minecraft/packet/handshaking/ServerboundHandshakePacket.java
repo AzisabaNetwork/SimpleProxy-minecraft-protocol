@@ -54,9 +54,12 @@ public class ServerboundHandshakePacket extends Packet {
                     ProxyServer.getProxy()
                             .unsafe()
                             .createMessageForwarder(connection.getPlayerChannel(), connection.getOriginalListenerInfo(), serverInfo);
-            //Util.getQueue(messageForwarder).addAll(connection.packetsQueue);
-            //connection.packetsQueue = null;
             connection.getPlayerChannel().pipeline().addBefore("splitter", "message_forwarder", messageForwarder);
+            try {
+                messageForwarder.getClass().getMethod("activate").invoke(messageForwarder);
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
         }
         connection.setProtocolVersion(protocolVersion);
         if (nextState != 1 && nextState != 2) {
