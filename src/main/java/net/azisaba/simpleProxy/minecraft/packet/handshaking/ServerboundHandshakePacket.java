@@ -41,14 +41,17 @@ public class ServerboundHandshakePacket extends Packet {
 
     @Override
     public void handle(@NotNull Connection connection) {
-        ServerInfo serverInfo = connection.getTargetServerForVirtualHost(serverAddress);
-        if (serverInfo == null) {
-            // no server to connect, disconnect the client.
-            connection.close();
-            return;
-        }
-        if (!connection.getPlayerChannel().pipeline().names().contains("message_forwarder")) {
+        if (connection.getPlayerChannel().pipeline().names().contains("message_forwarder")) {
+            connection.packetsQueue = null;
+        } else {
             // this means the user cannot have servers and virtual-hosts at same time
+
+            ServerInfo serverInfo = connection.getTargetServerForVirtualHost(serverAddress);
+            if (serverInfo == null) {
+                // no server to connect, disconnect the client.
+                connection.close();
+                return;
+            }
 
             ChannelInboundHandlerAdapter messageForwarder =
                     ProxyServer.getProxy()
