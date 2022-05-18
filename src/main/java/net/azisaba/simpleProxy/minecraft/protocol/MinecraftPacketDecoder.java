@@ -6,12 +6,9 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import net.azisaba.simpleProxy.minecraft.connection.Connection;
 import net.azisaba.simpleProxy.minecraft.packet.Packet;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 public class MinecraftPacketDecoder extends ChannelDuplexHandler {
-    private static final Logger LOGGER = LogManager.getLogger("minecraft-protocol");
     private final PacketFlow readFlow;
     private final PacketFlow writeFlow;
     private final Connection connection;
