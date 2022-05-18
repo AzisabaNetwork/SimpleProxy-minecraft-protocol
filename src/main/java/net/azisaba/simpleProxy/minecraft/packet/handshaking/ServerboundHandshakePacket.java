@@ -2,6 +2,7 @@ package net.azisaba.simpleProxy.minecraft.packet.handshaking;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.util.ReferenceCountUtil;
 import net.azisaba.simpleProxy.api.ProxyServer;
 import net.azisaba.simpleProxy.api.config.ServerInfo;
 import net.azisaba.simpleProxy.minecraft.connection.Connection;
@@ -42,6 +43,9 @@ public class ServerboundHandshakePacket extends Packet {
     @Override
     public void handle(@NotNull Connection connection) {
         if (connection.getPlayerChannel().pipeline().names().contains("message_forwarder")) {
+            for (Object o : connection.packetsQueue) {
+                ReferenceCountUtil.release(o);
+            }
             connection.packetsQueue = null;
         } else {
             // this means the user cannot have servers and virtual-hosts at same time
