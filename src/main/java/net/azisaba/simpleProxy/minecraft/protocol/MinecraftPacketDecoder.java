@@ -33,8 +33,6 @@ public class MinecraftPacketDecoder extends ChannelDuplexHandler {
             try {
                 handle(readFlow, (ByteBuf) msg);
             } catch (NullPointerException ignored) {
-            } catch (Exception e) {
-                LOGGER.error("Error while handling packet", e);
             }
         }
         super.channelRead(ctx, msg);
