@@ -1,6 +1,7 @@
 package net.azisaba.simpleProxy.minecraft.connection;
 
 import io.netty.channel.Channel;
+import io.netty.util.ReferenceCountUtil;
 import net.azisaba.simpleProxy.api.ProxyServer;
 import net.azisaba.simpleProxy.api.config.ListenerInfo;
 import net.azisaba.simpleProxy.api.config.ServerInfo;
@@ -112,19 +113,27 @@ public class Connection {
     }
 
     public void setEncryptionKey(@NotNull Cipher cipher1, @NotNull Cipher cipher2) {
-        encrypted = true;
+        Objects.requireNonNull(cipher1, "cipher1");
+        Objects.requireNonNull(cipher2, "cipher2");
         playerChannel.pipeline()
                 .addBefore("splitter", "decrypt", new MinecraftDecipher(cipher1))
                 .addBefore("prepender", "encrypt", new MinecraftEncipher(cipher2));
         remoteChannel.pipeline()
                 .addBefore("splitter", "decrypt", new MinecraftDecipher(cipher1))
                 .addBefore("prepender", "encrypt", new MinecraftEncipher(cipher2));
+        encrypted = true;
     }
 
     public void sendPacket(@NotNull PacketFlow flow, Object packet) {
         if (flow == PacketFlow.CLIENTBOUND) {
+            if (playerChannel == null) {
+                throw new IllegalStateException("Player channel is null");
+            }
             playerChannel.writeAndFlush(packet);
         } else {
+            if (remoteChannel == null) {
+                throw new IllegalStateException("Remote channel is null");
+            }
             remoteChannel.writeAndFlush(packet);
         }
     }
@@ -163,7 +172,29 @@ public class Connection {
         }
     }
 
+    public void releasePacketQueue() {
+        if (packetsQueue != null) {
+            for (Object o : packetsQueue) {
+                ReferenceCountUtil.release(o);
+            }
+            packetsQueue = null;
+        }
+    }
+
+    public void flushPacketQueue() {
+        if (remoteChannel == null) {
+            throw new IllegalStateException("Remote channel is null");
+        }
+        if (packetsQueue != null) {
+            for (Object o : packetsQueue) {
+                sendPacket(PacketFlow.SERVERBOUND, o);
+            }
+            packetsQueue = null;
+        }
+    }
+
     public void close() {
+        releasePacketQueue();
         if (playerChannel != null) {
             playerChannel.close();
         }
