@@ -172,13 +172,17 @@ public class Connection {
         }
     }
 
-    public void releasePacketQueue() {
+    public int releasePacketQueue() {
+        int freed = 0;
         if (packetsQueue != null) {
             for (Object o : packetsQueue) {
-                ReferenceCountUtil.release(o);
+                if (ReferenceCountUtil.release(o)) {
+                    freed++;
+                }
             }
             packetsQueue = null;
         }
+        return freed;
     }
 
     public void flushPacketQueue() {

@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "net.azisaba.simpleProxy"
-version = "0.1.0"
+version = "0.1.1-SNAPSHOT"
 
 java {
     toolchain {
@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("net.azisaba.simpleProxy:api:1.1.4")
+    compileOnly("net.azisaba.simpleProxy:api:1.1.6")
     compileOnly("org.jetbrains:annotations:23.0.0")
     compileOnly("it.unimi.dsi:fastutil:8.5.8")
 }

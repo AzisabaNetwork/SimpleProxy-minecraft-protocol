@@ -47,8 +47,13 @@ public class MinecraftProtocolPlugin extends Plugin {
     @EventHandler
     public void onRemoteConnectionInit(RemoteConnectionInitEvent e) {
         if (shouldHandle(e.getListenerInfo())) {
+            DisconnectLogger disconnectLogger = e.getSourceChannel().pipeline().get(DisconnectLogger.class);
+            if (disconnectLogger == null) {
+                // disconnected?
+                return;
+            }
+            Connection connection = disconnectLogger.getConnection();
             getLogger().debug("Registering Minecraft packet handler for {} (Remote)", e.getChannel());
-            Connection connection = e.getSourceChannel().pipeline().get(DisconnectLogger.class).getConnection();
             connection.setRemoteChannel(e.getChannel());
             e.getChannel().pipeline()
                     .addLast("splitter", new Varint21FrameDecoder())
@@ -62,7 +67,7 @@ public class MinecraftProtocolPlugin extends Plugin {
 
     @EventHandler
     public void onRemoteConnectionActivation(RemoteConnectionActiveEvent e) {
-        if (shouldHandle(e.getListenerInfo())) {
+        if (shouldHandle(e.getListenerInfo()) && e.getSourceChannel().isActive()) {
             e.getSourceChannel()
                     .pipeline()
                     .get(DisconnectLogger.class)
