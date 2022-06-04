@@ -1,11 +1,11 @@
-package net.azisaba.simpleProxy.minecraft.packet.login;
+package net.azisaba.simpleProxy.minecraft.network.login;
 
 import io.netty.buffer.ByteBuf;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
-import net.azisaba.simpleProxy.minecraft.packet.Packet;
+import net.azisaba.simpleProxy.minecraft.network.Packet;
+import net.azisaba.simpleProxy.minecraft.network.listener.LoginPacketListener;
 import org.jetbrains.annotations.NotNull;
 
-public class ClientboundLoginDisconnectPacket extends Packet {
+public class ClientboundLoginDisconnectPacket extends Packet<LoginPacketListener> {
     public String reason;
 
     public ClientboundLoginDisconnectPacket() {
@@ -25,8 +25,13 @@ public class ClientboundLoginDisconnectPacket extends Packet {
         writeString(buf, reason, 262144);
     }
 
+    @NotNull
+    public String getReason() {
+        return reason;
+    }
+
     @Override
-    public void handle(@NotNull Connection connection) {
-        // no-op
+    public void handle(@NotNull LoginPacketListener listener) {
+        listener.handle(this);
     }
 }

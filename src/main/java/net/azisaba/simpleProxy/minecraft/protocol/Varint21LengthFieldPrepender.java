@@ -4,7 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
-import net.azisaba.simpleProxy.minecraft.packet.Packet;
+import net.azisaba.simpleProxy.minecraft.network.Packet;
 
 @ChannelHandler.Sharable
 public class Varint21LengthFieldPrepender extends MessageToByteEncoder<ByteBuf> {

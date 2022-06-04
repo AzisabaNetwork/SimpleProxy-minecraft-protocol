@@ -1,13 +1,20 @@
-package net.azisaba.simpleProxy.minecraft.connection;
+package net.azisaba.simpleProxy.minecraft.network.connection;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
 import net.azisaba.simpleProxy.api.ProxyServer;
 import net.azisaba.simpleProxy.api.config.ListenerInfo;
 import net.azisaba.simpleProxy.api.config.ServerInfo;
 import net.azisaba.simpleProxy.api.yaml.YamlArray;
 import net.azisaba.simpleProxy.api.yaml.YamlObject;
-import net.azisaba.simpleProxy.minecraft.packet.login.ClientboundEncryptionRequestPacket;
+import net.azisaba.simpleProxy.minecraft.network.Packet;
+import net.azisaba.simpleProxy.minecraft.network.PacketListener;
+import net.azisaba.simpleProxy.minecraft.network.login.ClientboundEncryptionRequestPacket;
+import net.azisaba.simpleProxy.minecraft.network.listener.impl.HandshakePacketListenerImpl;
 import net.azisaba.simpleProxy.minecraft.protocol.MinecraftDecipher;
 import net.azisaba.simpleProxy.minecraft.protocol.MinecraftEncipher;
 import net.azisaba.simpleProxy.minecraft.protocol.PacketFlow;
@@ -23,15 +30,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicReference;
 
-public class Connection {
-    private static final Logger LOGGER = LogManager.getLogger();
+@ChannelHandler.Sharable
+public class Connection extends ChannelDuplexHandler {
+    private static final Logger LOGGER = LogManager.getLogger("minecraft-protocol");
     private static final Random RANDOM = new Random();
     private final ListenerInfo originalListenerInfo;
     private final Mode mode;
+    private final AtomicReference<PacketListener> listener = new AtomicReference<>(new HandshakePacketListenerImpl(this));
     private Channel playerChannel;
     private Channel remoteChannel;
-    private Protocol state = Protocol.HANDSHAKE;
+    //private Protocol state = Protocol.HANDSHAKE;
     private int protocolVersion = 0;
     private boolean encrypted = false;
     private ClientboundEncryptionRequestPacket encryptionRequestPacket;
@@ -53,11 +63,26 @@ public class Connection {
         return mode;
     }
 
+    @NotNull
+    public PacketListener getListener() {
+        return Objects.requireNonNull(listener.get(), "listener not set");
+    }
+
+    public void setListener(@NotNull PacketListener listener) {
+        this.listener.set(Objects.requireNonNull(listener, "listener"));
+    }
+
     public void setState(@NotNull Protocol state) {
         if (ProxyServer.getProxy().getConfig().isDebug()) {
             LOGGER.info("Transitioning state of {} to {}", playerChannel.remoteAddress(), state);
         }
-        this.state = state;
+        //this.state = state;
+        if (playerChannel != null) {
+            playerChannel.attr(Protocol.PROTOCOL_KEY).set(state);
+        }
+        if (remoteChannel != null) {
+            remoteChannel.attr(Protocol.PROTOCOL_KEY).set(state);
+        }
     }
 
     public void setPlayerChannel(@NotNull Channel playerChannel) {
@@ -80,7 +105,14 @@ public class Connection {
 
     @NotNull
     public Protocol getState() {
-        return state;
+        if (playerChannel != null) {
+            return playerChannel.attr(Protocol.PROTOCOL_KEY).get();
+        }
+        if (remoteChannel != null) {
+            return remoteChannel.attr(Protocol.PROTOCOL_KEY).get();
+        }
+        //return state;
+        throw new RuntimeException("Protocol not set");
     }
 
     public void setProtocolVersion(int protocolVersion) {
@@ -116,11 +148,11 @@ public class Connection {
         Objects.requireNonNull(cipher1, "cipher1");
         Objects.requireNonNull(cipher2, "cipher2");
         playerChannel.pipeline()
-                .addBefore("splitter", "decrypt", new MinecraftDecipher(cipher1))
-                .addBefore("prepender", "encrypt", new MinecraftEncipher(cipher2));
+                .addBefore(PipelineNames.SPLITTER, PipelineNames.DECRYPT, new MinecraftDecipher(cipher1))
+                .addBefore(PipelineNames.PREPENDER, PipelineNames.ENCRYPT, new MinecraftEncipher(cipher2));
         remoteChannel.pipeline()
-                .addBefore("splitter", "decrypt", new MinecraftDecipher(cipher1))
-                .addBefore("prepender", "encrypt", new MinecraftEncipher(cipher2));
+                .addBefore(PipelineNames.SPLITTER, PipelineNames.DECRYPT, new MinecraftDecipher(cipher1))
+                .addBefore(PipelineNames.PREPENDER, PipelineNames.ENCRYPT, new MinecraftEncipher(cipher2));
         encrypted = true;
     }
 
@@ -197,6 +229,23 @@ public class Connection {
         }
     }
 
+    public void detach() {
+        if (playerChannel != null) {
+            for (String name : PipelineNames.values()) {
+                if (playerChannel.pipeline().names().contains(name)) {
+                    playerChannel.pipeline().remove(name);
+                }
+            }
+        }
+        if (remoteChannel != null) {
+            for (String name : PipelineNames.values()) {
+                if (remoteChannel.pipeline().names().contains(name)) {
+                    remoteChannel.pipeline().remove(name);
+                }
+            }
+        }
+    }
+
     public void close() {
         releasePacketQueue();
         if (playerChannel != null) {
@@ -205,5 +254,30 @@ public class Connection {
         if (remoteChannel != null) {
             remoteChannel.close();
         }
+    }
+
+    @Override
+    public void channelRead(@NotNull ChannelHandlerContext ctx, @NotNull Object msg) {
+        if (!(msg instanceof Packet<?>)) {
+            ctx.fireChannelRead(msg);
+            return;
+        }
+        Packet<?> packet = (Packet<?>) msg;
+        genericsHack(packet, getListener());
+    }
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+        if (!(msg instanceof Packet<?>)) {
+            ctx.write(msg, promise);
+            return;
+        }
+        Packet<?> packet = (Packet<?>) msg;
+        genericsHack(packet, getListener());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <P extends PacketListener> void genericsHack(@NotNull Packet<P> packet, @NotNull PacketListener listener) {
+        packet.handle((P) listener);
     }
 }

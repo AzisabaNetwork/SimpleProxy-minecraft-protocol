@@ -4,9 +4,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
-import net.azisaba.simpleProxy.minecraft.packet.Packet;
+import net.azisaba.simpleProxy.minecraft.network.Packet;
+import net.azisaba.simpleProxy.minecraft.network.connection.Connection;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.function.Consumer;
 
 public class MinecraftPacketDecoder extends ChannelDuplexHandler {
     private final PacketFlow readFlow;
@@ -25,35 +28,46 @@ public class MinecraftPacketDecoder extends ChannelDuplexHandler {
     }
 
     @Override
-    public void channelRead(@NotNull ChannelHandlerContext ctx, @NotNull Object msg) throws Exception {
-        if (/*flow == PacketFlow.SERVERBOUND && */msg instanceof ByteBuf) {
-            try {
-                handle(readFlow, (ByteBuf) msg);
-            } catch (NullPointerException ignored) {
-            }
-        }
-        super.channelRead(ctx, msg);
+    public void channelRead(@NotNull ChannelHandlerContext ctx, @NotNull Object msg) {
+        process(readFlow, msg, ctx::fireChannelRead);
     }
 
     @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (/*flow == PacketFlow.CLIENTBOUND) && */msg instanceof ByteBuf) {
-            try {
-                handle(writeFlow, (ByteBuf) msg);
-            } catch (NullPointerException ignored) {}
-        }
-        super.write(ctx, msg, promise);
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+        process(writeFlow, msg, o -> ctx.write(o, promise));
     }
 
-    private void handle(@NotNull PacketFlow flow, ByteBuf buf) {
-        if (buf.readableBytes() != 0) {
-            int packetId = Packet.readVarInt(buf);
-            Protocol.PacketData<?> packetData = connection.getState().getPackets(flow, connection.getProtocolVersion()).getPacket(packetId);
-            if (packetData != null) {
-                Packet packet = packetData.getPacketConstructor().get();
-                packet.read(buf, flow, connection.getProtocolVersion());
-                packet.handle(connection);
+    private void process(PacketFlow flow, Object msg, @NotNull Consumer<@NotNull Object> readWrite) {
+        if (msg instanceof ByteBuf) {
+            ByteBuf buf = (ByteBuf) msg;
+            try {
+                Packet<?> packet = decode(flow, buf);
+                if (packet != null) {
+                    buf.release();
+                    readWrite.accept(packet);
+                    return;
+                }
+            } catch (NullPointerException ignored) {
             }
         }
+        readWrite.accept(msg);
+    }
+
+    @Nullable
+    private Packet<?> decode(@NotNull PacketFlow flow, ByteBuf buf) {
+        if (buf.readableBytes() != 0) {
+            int packetId = Packet.readVarInt(buf);
+            try {
+                Protocol.PacketData<?> packetData = connection.getState().getPackets(flow, connection.getProtocolVersion()).getPacket(packetId);
+                if (packetData != null) {
+                    Packet<?> packet = packetData.getPacketConstructor().get();
+                    packet.read(buf, flow, connection.getProtocolVersion());
+                    return packet;
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to handle packet " + packetId, e);
+            }
+        }
+        return null;
     }
 }

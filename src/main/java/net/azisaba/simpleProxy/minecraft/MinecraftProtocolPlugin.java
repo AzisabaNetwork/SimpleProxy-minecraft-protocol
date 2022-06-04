@@ -8,8 +8,9 @@ import net.azisaba.simpleProxy.api.event.connection.RemoteConnectionActiveEvent;
 import net.azisaba.simpleProxy.api.event.connection.RemoteConnectionInitEvent;
 import net.azisaba.simpleProxy.api.event.proxy.ProxyInitializeEvent;
 import net.azisaba.simpleProxy.api.plugin.Plugin;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
-import net.azisaba.simpleProxy.minecraft.connection.Mode;
+import net.azisaba.simpleProxy.minecraft.network.connection.Connection;
+import net.azisaba.simpleProxy.minecraft.network.connection.Mode;
+import net.azisaba.simpleProxy.minecraft.network.connection.PipelineNames;
 import net.azisaba.simpleProxy.minecraft.protocol.DisconnectLogger;
 import net.azisaba.simpleProxy.minecraft.protocol.DummyMessageForwarder;
 import net.azisaba.simpleProxy.minecraft.protocol.MinecraftPacketDecoder;
@@ -18,6 +19,8 @@ import net.azisaba.simpleProxy.minecraft.protocol.NoopExceptionHandler;
 import net.azisaba.simpleProxy.minecraft.protocol.PacketFlow;
 import net.azisaba.simpleProxy.minecraft.protocol.Varint21FrameDecoder;
 import net.azisaba.simpleProxy.minecraft.protocol.Varint21LengthFieldPrepender;
+
+import java.util.Objects;
 
 public class MinecraftProtocolPlugin extends Plugin {
     @EventHandler
@@ -30,16 +33,20 @@ public class MinecraftProtocolPlugin extends Plugin {
     @EventHandler
     public void onConnectionInit(ConnectionInitEvent e) {
         if (shouldHandle(e.getListenerInfo())) {
-            Mode mode = "minecraft-full".equals(e.getListenerInfo().getType()) ? Mode.FULL : Mode.NORMAL;
+            e.getChannel()
+                    .attr(net.azisaba.simpleProxy.minecraft.protocol.Protocol.PROTOCOL_KEY)
+                    .set(net.azisaba.simpleProxy.minecraft.protocol.Protocol.HANDSHAKE);
+            Mode mode = Objects.requireNonNull(Mode.getMode(e.getListenerInfo().getType()), "mode should never be null");
             getLogger().debug("Registering Minecraft packet handler for {} (Forwarder)", e.getChannel());
             Connection connection = new Connection(e.getListenerInfo(), mode, e.getChannel(), null);
             e.getChannel().pipeline()
                     .addLast(new DummyMessageForwarder(connection))
-                    .addLast("splitter", new Varint21FrameDecoder())
-                    .addLast("decoder", new MinecraftPacketDecoder(PacketFlow.SERVERBOUND, PacketFlow.CLIENTBOUND, connection))
-                    .addLast("encoder", new MinecraftPacketEncoder(PacketFlow.SERVERBOUND, PacketFlow.CLIENTBOUND, connection))
-                    .addLast("prepender", Varint21LengthFieldPrepender.INSTANCE)
-                    .addLast("disconnect_logger", new DisconnectLogger(connection, PacketFlow.CLIENTBOUND))
+                    .addLast(PipelineNames.SPLITTER, new Varint21FrameDecoder())
+                    .addLast(PipelineNames.DECODER, new MinecraftPacketDecoder(PacketFlow.SERVERBOUND, PacketFlow.CLIENTBOUND, connection))
+                    .addLast(PipelineNames.PACKET_HANDLER, connection)
+                    .addLast(PipelineNames.ENCODER, new MinecraftPacketEncoder(PacketFlow.SERVERBOUND, PacketFlow.CLIENTBOUND, connection))
+                    .addLast(PipelineNames.PREPENDER, Varint21LengthFieldPrepender.INSTANCE)
+                    .addLast(PipelineNames.DISCONNECT_LOGGER, new DisconnectLogger(connection, PacketFlow.CLIENTBOUND))
                     .addLast(NoopExceptionHandler.INSTANCE);
         }
     }
@@ -56,11 +63,12 @@ public class MinecraftProtocolPlugin extends Plugin {
             getLogger().debug("Registering Minecraft packet handler for {} (Remote)", e.getChannel());
             connection.setRemoteChannel(e.getChannel());
             e.getChannel().pipeline()
-                    .addLast("splitter", new Varint21FrameDecoder())
-                    .addLast("decoder", new MinecraftPacketDecoder(PacketFlow.CLIENTBOUND, PacketFlow.SERVERBOUND, connection))
-                    .addLast("encoder", new MinecraftPacketEncoder(PacketFlow.CLIENTBOUND, PacketFlow.SERVERBOUND, connection))
-                    .addLast("prepender", Varint21LengthFieldPrepender.INSTANCE)
-                    .addLast("disconnect_logger", new DisconnectLogger(connection, PacketFlow.SERVERBOUND))
+                    .addLast(PipelineNames.SPLITTER, new Varint21FrameDecoder())
+                    .addLast(PipelineNames.DECODER, new MinecraftPacketDecoder(PacketFlow.CLIENTBOUND, PacketFlow.SERVERBOUND, connection))
+                    .addLast(PipelineNames.PACKET_HANDLER, connection)
+                    .addLast(PipelineNames.ENCODER, new MinecraftPacketEncoder(PacketFlow.CLIENTBOUND, PacketFlow.SERVERBOUND, connection))
+                    .addLast(PipelineNames.PREPENDER, Varint21LengthFieldPrepender.INSTANCE)
+                    .addLast(PipelineNames.DISCONNECT_LOGGER, new DisconnectLogger(connection, PacketFlow.SERVERBOUND))
                     .addLast(NoopExceptionHandler.INSTANCE);
         }
     }
@@ -68,6 +76,9 @@ public class MinecraftProtocolPlugin extends Plugin {
     @EventHandler
     public void onRemoteConnectionActivation(RemoteConnectionActiveEvent e) {
         if (shouldHandle(e.getListenerInfo()) && e.getSourceChannel().isActive()) {
+            if (Mode.getMode(e.getListenerInfo().getType()) == Mode.VIRTUAL_HOSTS_ONLY) {
+                return;
+            }
             e.getSourceChannel()
                     .pipeline()
                     .get(DisconnectLogger.class)
@@ -77,6 +88,6 @@ public class MinecraftProtocolPlugin extends Plugin {
     }
 
     private boolean shouldHandle(ListenerInfo info) {
-        return info.getProtocol() == Protocol.TCP && ("minecraft".equals(info.getType()) || "minecraft-full".equals(info.getType()));
+        return info.getProtocol() == Protocol.TCP && Mode.getMode(info.getType()) != null;
     }
 }

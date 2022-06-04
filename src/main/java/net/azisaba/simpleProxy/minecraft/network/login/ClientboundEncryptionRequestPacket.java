@@ -1,11 +1,11 @@
-package net.azisaba.simpleProxy.minecraft.packet.login;
+package net.azisaba.simpleProxy.minecraft.network.login;
 
 import io.netty.buffer.ByteBuf;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
-import net.azisaba.simpleProxy.minecraft.packet.Packet;
+import net.azisaba.simpleProxy.minecraft.network.Packet;
+import net.azisaba.simpleProxy.minecraft.network.listener.LoginPacketListener;
 import org.jetbrains.annotations.NotNull;
 
-public class ClientboundEncryptionRequestPacket extends Packet {
+public class ClientboundEncryptionRequestPacket extends Packet<LoginPacketListener> {
     public String serverId; // String (20)
     public int publicKeyLength; // VarInt
     public byte[] publicKey; // Byte Array
@@ -30,8 +30,28 @@ public class ClientboundEncryptionRequestPacket extends Packet {
         buf.writeBytes(verifyToken);
     }
 
+    public byte[] getPublicKey() {
+        return publicKey;
+    }
+
+    public byte[] getVerifyToken() {
+        return verifyToken;
+    }
+
+    public int getPublicKeyLength() {
+        return publicKeyLength;
+    }
+
+    public int getVerifyTokenLength() {
+        return verifyTokenLength;
+    }
+
+    public String getServerId() {
+        return serverId;
+    }
+
     @Override
-    public void handle(@NotNull Connection connection) {
-        connection.setEncryptionRequestPacket(this);
+    public void handle(@NotNull LoginPacketListener listener) {
+        listener.handle(this);
     }
 }

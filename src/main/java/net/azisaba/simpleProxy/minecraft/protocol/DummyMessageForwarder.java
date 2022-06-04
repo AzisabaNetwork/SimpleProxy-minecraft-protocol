@@ -4,13 +4,13 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import net.azisaba.simpleProxy.api.ProxyServer;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
+import net.azisaba.simpleProxy.minecraft.network.connection.Connection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 public class DummyMessageForwarder extends ChannelInboundHandlerAdapter {
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogManager.getLogger("minecraft-protocol");
 
     private final Connection connection;
 

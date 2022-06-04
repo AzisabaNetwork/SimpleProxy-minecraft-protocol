@@ -1,4 +1,4 @@
-package net.azisaba.simpleProxy.minecraft.packet;
+package net.azisaba.simpleProxy.minecraft.network;
 
 import org.jetbrains.annotations.Nullable;
 

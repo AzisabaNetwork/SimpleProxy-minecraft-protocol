@@ -5,15 +5,15 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
-import net.azisaba.simpleProxy.minecraft.packet.Packet;
+import net.azisaba.simpleProxy.minecraft.network.connection.Connection;
+import net.azisaba.simpleProxy.minecraft.network.Packet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class MinecraftPacketEncoder extends ChannelDuplexHandler {
-    private static final Logger LOGGER = LogManager.getLogger();
+    private static final Logger LOGGER = LogManager.getLogger("minecraft-protocol");
     private final PacketFlow readFlow;
     private final PacketFlow writeFlow;
     private final Connection connection;
@@ -27,14 +27,13 @@ public class MinecraftPacketEncoder extends ChannelDuplexHandler {
     @Override
     public void channelRead(@NotNull ChannelHandlerContext ctx, @NotNull Object msg) throws Exception {
         if ((true/* || flow == PacketFlow.CLIENTBOUND*/)) {
-            ByteBuf buf = null;
             try {
-                buf = handle(readFlow, msg);
+                ByteBuf buf = handle(readFlow, msg);
+                if (buf != null) {
+                    ctx.fireChannelRead(buf);
+                    return;
+                }
             } catch (NullPointerException ignored) {}
-            if (buf != null) {
-                super.channelRead(ctx, buf);
-                return;
-            }
         }
         super.channelRead(ctx, msg);
     }
@@ -42,14 +41,13 @@ public class MinecraftPacketEncoder extends ChannelDuplexHandler {
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if ((true/* || flow == PacketFlow.SERVERBOUND*/)) {
-            ByteBuf buf = null;
             try {
-                buf = handle(writeFlow, msg);
+                ByteBuf buf = handle(writeFlow, msg);
+                if (buf != null) {
+                    ctx.write(buf, promise);
+                    return;
+                }
             } catch (NullPointerException ignored) {}
-            if (buf != null) {
-                super.write(ctx, buf, promise);
-                return;
-            }
         }
         super.write(ctx, msg, promise);
     }
@@ -59,14 +57,14 @@ public class MinecraftPacketEncoder extends ChannelDuplexHandler {
         if (in instanceof ByteBuf) {
             return (ByteBuf) in;
         }
-        if (in instanceof Packet) {
+        if (in instanceof Packet<?>) {
             ByteBuf buf = Unpooled.buffer();
             int id = connection.getState().getPackets(flow, connection.getProtocolVersion()).getPacketId(in.getClass());
             if (id == -1) {
                 LOGGER.warn("Trying to send unknown packet: {}", in.getClass().getTypeName());
             }
             Packet.writeVarInt(buf, id);
-            ((Packet) in).write(buf, flow, connection.getProtocolVersion());
+            ((Packet<?>) in).write(buf, flow, connection.getProtocolVersion());
             return buf;
         }
         return null;

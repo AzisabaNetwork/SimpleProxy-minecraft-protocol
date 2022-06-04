@@ -1,13 +1,12 @@
-package net.azisaba.simpleProxy.minecraft.packet;
+package net.azisaba.simpleProxy.minecraft.network;
 
 import io.netty.buffer.ByteBuf;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
 import net.azisaba.simpleProxy.minecraft.protocol.PacketFlow;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.charset.StandardCharsets;
 
-public abstract class Packet {
+public abstract class Packet<P extends PacketListener> {
     public static final boolean DEBUG = Boolean.getBoolean("minecraft-protocol.debug-packet");
     public static final String CACHED_EXCEPTION_SUFFIX = "Launch proxy with -Dminecraft-protocol.debug-packet=true to see more.";
     private static final BadPacketException VARINT_NO_MORE_BYTES_EXCEPTION = new BadPacketException("No more bytes reading VarInt. " + CACHED_EXCEPTION_SUFFIX);
@@ -31,7 +30,7 @@ public abstract class Packet {
         write(buf);
     }
 
-    public abstract void handle(@NotNull Connection connection);
+    public abstract void handle(@NotNull P listener);
 
     /* Utility methods */
 

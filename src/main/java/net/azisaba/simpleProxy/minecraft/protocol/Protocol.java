@@ -1,11 +1,12 @@
 package net.azisaba.simpleProxy.minecraft.protocol;
 
+import io.netty.util.AttributeKey;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.azisaba.simpleProxy.minecraft.packet.Packet;
-import net.azisaba.simpleProxy.minecraft.packet.handshaking.ServerboundHandshakePacket;
-import net.azisaba.simpleProxy.minecraft.packet.login.ClientboundLoginDisconnectPacket;
-import net.azisaba.simpleProxy.minecraft.packet.login.ServerboundLoginStartPacket;
+import net.azisaba.simpleProxy.minecraft.network.Packet;
+import net.azisaba.simpleProxy.minecraft.network.handshaking.ServerboundHandshakePacket;
+import net.azisaba.simpleProxy.minecraft.network.login.ClientboundLoginDisconnectPacket;
+import net.azisaba.simpleProxy.minecraft.network.login.ServerboundLoginStartPacket;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -45,6 +46,8 @@ public enum Protocol {
     PLAY,
     ;
 
+    public static final AttributeKey<Protocol> PROTOCOL_KEY = AttributeKey.valueOf("protocol");
+
     // Packet flow, protocol version, protocol data
     private final Map<PacketFlow, Map<Integer, ProtocolData>> packets = new Object2ObjectOpenHashMap<>();
 
@@ -59,7 +62,7 @@ public enum Protocol {
         return new ProtocolMapping(pv, id);
     }
 
-    <T extends Packet> void register(@NotNull PacketFlow flow,
+    <T extends Packet<?>> void register(@NotNull PacketFlow flow,
                                      @NotNull Class<T> packetClass,
                                      @NotNull Supplier<T> packetConstructor,
                                      @NotNull ProtocolMapping@NotNull... mappings) {
@@ -113,7 +116,7 @@ public enum Protocol {
         }
     }
 
-    public static class PacketData<P extends Packet> {
+    public static class PacketData<P extends Packet<?>> {
         private final int packetId;
         private final Class<P> packetClass;
         private final Supplier<P> packetConstructor;

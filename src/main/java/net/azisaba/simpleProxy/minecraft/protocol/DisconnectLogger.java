@@ -3,7 +3,7 @@ package net.azisaba.simpleProxy.minecraft.protocol;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import net.azisaba.simpleProxy.minecraft.Minecraft;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
+import net.azisaba.simpleProxy.minecraft.network.connection.Connection;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;

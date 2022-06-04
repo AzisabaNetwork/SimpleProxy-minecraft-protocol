@@ -3,7 +3,7 @@ package net.azisaba.simpleProxy.minecraft;
 import it.unimi.dsi.fastutil.objects.ObjectArraySet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import it.unimi.dsi.fastutil.objects.ObjectSets;
-import net.azisaba.simpleProxy.minecraft.connection.Connection;
+import net.azisaba.simpleProxy.minecraft.network.connection.Connection;
 import net.azisaba.simpleProxy.minecraft.util.EncryptionUtils;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
