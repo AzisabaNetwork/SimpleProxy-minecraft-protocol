@@ -20,7 +20,7 @@ repositories {
 dependencies {
     compileOnly("net.azisaba.simpleProxy:api:1.1.6")
     compileOnly("org.jetbrains:annotations:23.0.0")
-    compileOnly("it.unimi.dsi:fastutil:8.5.8")
+    compileOnly("it.unimi.dsi:fastutil:8.5.9")
 }
 
 configurations.all {
