@@ -1,30 +1,31 @@
 plugins {
     java
+    `maven-publish`
     id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
-group = "net.azisaba.simpleProxy"
-version = "0.1.1-SNAPSHOT"
+group = "net.azisaba.simpleproxy"
+version = "1.0.0-SNAPSHOT"
 
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(11))
     }
+
+    withJavadocJar()
+    withSourcesJar()
 }
 
 repositories {
     mavenCentral()
+    maven { url = uri("https://repo.azisaba.net/repository/maven-public/") }
     maven { url = uri("https://repo.acrylicstyle.xyz/repository/maven-public/") }
 }
 
 dependencies {
-    compileOnly("net.azisaba.simpleProxy:api:1.1.6")
-    compileOnly("org.jetbrains:annotations:23.0.0")
-    compileOnly("it.unimi.dsi:fastutil:8.5.9")
-}
-
-configurations.all {
-    resolutionStrategy.cacheChangingModulesFor(0, TimeUnit.SECONDS)
+    compileOnly("net.azisaba.simpleproxy:api:2.0.0")
+    compileOnly("org.jetbrains:annotations:24.0.0")
+    compileOnly("it.unimi.dsi:fastutil:8.5.11")
 }
 
 tasks {
@@ -48,5 +49,32 @@ tasks {
 
     test {
         useJUnitPlatform()
+    }
+}
+
+val javaComponent = components["java"] as AdhocComponentWithVariants
+javaComponent.withVariantsFromConfiguration(configurations["sourcesElements"]) {
+    skip()
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "repo"
+            credentials(PasswordCredentials::class)
+            url = uri(
+                    if (project.version.toString().endsWith("SNAPSHOT"))
+                        project.findProperty("deploySnapshotURL") ?: System.getProperty("deploySnapshotURL", "https://repo.azisaba.net/repository/maven-snapshots/")
+                    else
+                        project.findProperty("deployReleasesURL") ?: System.getProperty("deployReleasesURL", "https://repo.azisaba.net/repository/maven-releases/")
+            )
+        }
+    }
+
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+            artifact(tasks.getByName("sourcesJar"))
+        }
     }
 }
